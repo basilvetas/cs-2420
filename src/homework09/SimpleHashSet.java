@@ -1,0 +1,338 @@
+package homework09;
+
+/**
+ * This class is a hash table implementation of a set.  It is
+ * designed to support simple hash table experiments.  Each table
+ * has a fixed maximum size.  Elements can be added, deleted, or
+ * queried, but the number of elements in the set is
+ * not available to the user.  Also there is no mechanism for
+ * iterating through the elements in a table.  (These restrictions
+ * are imposed to prevent inaccurate testing strategies.)
+ * 
+ * Element equality is determined using the .equals method.
+ * 
+ * The hash table is implemented using open addressing and linear
+ * probing.
+ * 
+ * In addition to the methods for accessing the set, this implementation
+ * keeps a probe count that can be read and reset by the user.  Every read
+ * of a location in the hash table is considered a probe.
+ * 
+ *  Finally, the user can request a cluster table.  This is just a
+ *  String object that indicates which locations in the hash table
+ *  are filled.
+ * 
+ * @author Peter Jensen
+ * @version Spring 2014
+ */
+public class SimpleHashSet
+{
+    // Instance variables.
+    
+    private Object[] table;
+    private int      capacity;    
+    private int      probeCount;
+    private int 	 setSize;
+    
+    private int[]	 insertionAttempts;
+    private int[]	 insertionProbes;
+    
+    private int[]	 searchAttempts;
+    private int[]	 searchProbes;
+    
+    /**
+     * Builds a hash set with the specified maximum size.
+     * 
+     * @param capacity the size of the hash table
+     */
+    public SimpleHashSet (int capacity)
+    {
+        this.capacity   = capacity;
+        this.table      = new Object[capacity];
+        this.probeCount = 0;
+        insertionAttempts = new int[51];
+        insertionProbes = new int[51];
+        searchAttempts = new int[51];
+        searchProbes = new int[51];
+    }
+    
+    /**
+     * Adds the specified element to the set.  If the hash
+     * table already contains an object equal to the specified
+     * object, the specified object will not be added.
+     * 
+     * @param element any object
+     * @throws TableFullException if the hash table is full
+     */
+    public void add (Object element)
+    {
+        ///// You must complete this method /////
+        
+        // 1. Compute the hash code for the element, confine it to the table size.
+        //   (A simple mod-based hash function.)  This will be the array index.
+        //   Watch out for negative hash codes!
+    	
+    	insertionAttempts[setSize]++;
+    	
+    	int hash = Math.abs(element.hashCode());
+    	hash = hash % capacity;
+    	
+        // 2. Try to insert the element at the hash code location.  Use a loop instead of an if statement.
+        // If the loop repeats, advance by one to the next open spot (linear probing).
+
+    	for(int retry = 0; retry < capacity; retry++)
+    	{
+            // 3. Determine what is in the hash table by probing it.
+            int probePosition = (hash + retry) % capacity;
+    		probeCount++;
+    		insertionProbes[setSize]++;
+    		
+            // 4. If that location in the table is empty, store the element in it and return.
+            if(table[probePosition] == null)
+            {
+            	table[probePosition] = element;
+            	setSize++;
+            	return;
+            }
+    		
+            // 5. If that location already contains the element, return.
+            if(table[probePosition].equals(element))
+            	return;
+    	}
+    	
+    	//System.out.println ("Add number of probes: " + addProbeCount + "\tElement: " + element);
+        // 6. If we get this far, the table was full.  Throw an exception.
+    	throw new TableFullException();
+    }
+    
+    /**
+     * Returns true if this element is in the set.  The
+     * element is considered to be in the set if it is
+     * equal to any object in the set.
+     * 
+     * @param element any object
+     * @return true if the element is in the set
+     */
+    public boolean contains (Object element)
+    {
+    	searchAttempts[setSize]++;
+    	
+        ///// You must write this method /////
+    	
+    	int hash = Math.abs(element.hashCode());
+    	hash = hash % capacity;
+    	
+    	for(int retry = 0; retry < capacity; retry++)
+    	{
+            // 3. Determine what is in the hash table by probing it.
+            int probePosition = (hash + retry) % capacity;
+    		probeCount++;
+    		searchProbes[setSize]++;
+    		
+            // 4. If the expected location in the table is empty, return false;
+            if(table[probePosition] == null)
+            	return false;
+    		
+            // 5. If that location contains the element, return true.
+            if(table[probePosition].equals(element))
+            	return true;
+    	}
+    	//System.out.println ("Contains number of probes: " + containsProbeCount + "\tElement: " + element);
+    	return false;
+    }
+    
+    /**
+     * Removes the specified element from the set.  If the
+     * set does not contain an object equal to the element,
+     * nothing happens.
+     */
+    public void delete (Object element)
+    {
+    	//int deleteProbeCount = 0;
+    	
+    	//deletionCount++;
+    	
+        // Compute the hash code for the element, confine it to the table size.
+        //   (A simple division-based hash function.)
+        
+        int hash = Math.abs(element.hashCode()) % capacity;
+        
+        // Try to locate the element at the hashed position.  If it is not
+        //   there, simply return.
+        
+        int retry = 0;
+        for (; retry < capacity; retry++)
+        {
+            // Determine what is in the hash table by probing it.
+            
+            Object probed = table[(hash + retry) % capacity];
+            probeCount++;
+            //deleteProbeCount++;
+            
+            // If that location in the table is empty, the element is not in the table.
+            
+            if (probed == null)
+                return;
+            
+            // If that location contains the element, terminate the loop.
+
+            if (probed.equals(element))
+                break;
+        }
+        
+        // If the table was full, but the element was not found, return.
+        
+        if (retry == capacity)
+            return;
+        
+        // Remove the element.  This involves possibly moving other elements
+        //   in the hash table to collapse the cluster.
+        
+        int freePosition = (hash + retry) % capacity;
+        
+        for (int count = 1; (freePosition + count) % capacity != hash; count++)
+        {
+            // Determine what is in the hash table by probing it.
+            
+            Object probed = table[(freePosition + count) % capacity];
+            probeCount++;
+            //deleteProbeCount++;
+            
+            // If null, we're done collapsing the cluster.
+            
+            if (probed == null)
+                break;
+            
+            // If the probed object could legally occupy the free position, put it in the free position.
+            //   To do this, determine the retry count that was used to place the probed element
+            //   in the cache.
+            
+            int probedHash  = Math.abs(probed.hashCode()) % capacity;
+            int probedRetry = ((freePosition + count) - probedHash + capacity) % capacity; 
+            
+            // If the probed retry is greater than or equal to our offset from the free
+            //   position, move the element into the free position.
+            
+            if (probedRetry >= count)
+            {                
+                table[freePosition] = probed;
+                freePosition = (freePosition + count) % capacity;
+                count = 0;
+            }
+        }
+        
+        // Clear the free position.
+        //System.out.println ("Delete number of probes: " + deleteProbeCount + "\tElement: " + element);
+        table[freePosition] = null;
+        setSize--;
+    }
+    
+    /**
+     * Returns a string that indicates which elements of the
+     * table are used.
+     * 
+     * @return a string that shows table usage.
+     */
+    public String getClusterMap ()
+    {
+        StringBuilder result = new StringBuilder(table.length);
+        for (Object o : table)
+            result.append(o == null ? '.' : 'X');
+        
+        return result.toString();
+    }
+    
+    /**
+     * Returns the number of probes made to the table since the
+     * last probe count resent.
+     * 
+     * @return the probe count
+     */
+    public int getProbeCount ()
+    {
+        return probeCount;
+    }
+    
+    /**
+     * Resets the probe count to 0.
+     */
+    public void resetProbeCount ()
+    {
+        probeCount = 0;
+    }
+    
+    /**
+     * Resets the probe count to 0.
+     */
+    public int getSetSize ()
+    {
+        return setSize;
+    }
+    
+    /**
+     * Returns the number of insertions attempts made for a given operation
+     * 
+     * @return the insertion attempts count
+     */
+    public int getInsertionAttempts (int setSize)
+    {
+        return insertionAttempts[setSize];
+    }
+    
+    /**
+     * Returns the number of probes made for a given insertion.
+     * 
+     * @return the probes for a given set size
+     */
+    public int getInsertionProbes (int setSize)
+    {
+       return insertionProbes[setSize];
+    }
+    
+    /**
+     * Returns the number of search attempts made for a given operation
+     * 
+     * @return the search attempt count
+     */
+    public int getSearchAttempts (int setSize)
+    {
+        return searchAttempts[setSize];
+    }
+    
+    /**
+     * Returns the number of probes made for a given search.
+     * 
+     * @return the probes for a given set size
+     */
+    public int getSearchProbes (int setSize)
+    {
+       return searchProbes[setSize];
+    }
+    
+    /**
+     * A debugging method for printing out the table contents.
+     */
+    public void debugTable ()
+    {
+        for (int i = 0; i < capacity; i++)
+        {
+            System.out.print ("Position " + i + ": " + table[i]);
+            if (table[i] != null)
+                System.out.println (" (hashes to location " + (Math.abs(table[i].hashCode()) % capacity) + ")");
+            else
+                System.out.println ();            
+        }
+        System.out.println();
+    }
+    
+    /**
+     * An exception class for indicating the table is full.
+     */
+    static class TableFullException extends RuntimeException
+    {
+        TableFullException ()
+        {
+            super ("The hash table is full.");
+        }
+    }    
+}
